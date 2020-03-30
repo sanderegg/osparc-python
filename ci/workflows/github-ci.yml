@@ -1,0 +1,54 @@
+name: Github-CI Push/PR osparc-python
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  build:
+    name: building osparc-python
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        python: [3.8]
+        os: [ubuntu-18.04]
+        docker-compose: [1.25.0]
+        node: [10]
+      fail-fast: false
+    steps:
+      - uses: actions/checkout@v1
+      - name: setup-docker
+        uses: docker-practice/actions-setup-docker@0.0.1
+      - name: setup docker-compose
+        run: |
+          sudo curl -L "https://github.com/docker/compose/releases/download/${{ matrix.docker-compose }}/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
+          sudo chmod +x /usr/local/bin/docker-compose
+      - name: setup python environment
+        uses: actions/setup-python@v1.1.1
+        with:
+          python-version: ${{ matrix.python }}
+      - name: show versions
+        run: |
+          python -V
+          python3 -V
+          pip -V
+          pip3 -V
+          docker --version
+          docker-compose --version
+      - uses: actions/cache@v1
+        name: getting cached data
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements.txt') }}
+          restore-keys: |
+            ${{ runner.os }}-pip-
+      - name: set dev environs
+        run: make devenv
+      - name: get current image if available
+        run: make pull-latest || true
+      - name: build
+        run: make build
+      - name: test
+        run: make tests
+      - name: deploy
+        run: make push
