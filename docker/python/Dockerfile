@@ -49,7 +49,6 @@ COPY --chown=${SC_USER_NAME}:${SC_USER_NAME} src/osparc_python src/osparc_python
 # ------------------------------------------------------------------------------------
 #TODO:
 # uncomment and adapt if build steps are necessary
-# RUN gcc ...
 RUN cp -R src/osparc_python/* /build/bin
 # ------------------------------------------------------------------------------------
 
@@ -102,5 +101,5 @@ RUN pip install -r osparc_python/requirements.txt
 #             CMD ["healthchecker app"]
 # ------------------------------------------------------------------------------------
 
-ENTRYPOINT [ "/bin/sh", "docker/entrypoint.sh" ]
+ENTRYPOINT [ "/bin/sh", "docker/entrypoint.sh", "/bin/sh", "-c" ]
 CMD ["run"]

@@ -11,14 +11,9 @@
 SHELL = /bin/sh
 .DEFAULT_GOAL := help
 
-ifeq (,$(wildcard .git))
-# NOTE: will prevent failure of recipes when not in git repo
-$(info WARNING: not running in a git repository!!!)
-export git=echo
-endif
-export VCS_URL:=$(shell $(git) config --get remote.origin.url)
-export VCS_REF:=$(shell $(git) rev-parse --short HEAD)
-export VCS_STATUS_CLIENT:=$(if $(shell $(git) status -s),'modified/untracked','clean')
+export VCS_URL:=$(shell git config --get remote.origin.url || echo unversioned)
+export VCS_REF:=$(shell git rev-parse --short HEAD || echo unversioned)
+export VCS_STATUS:=$(if $(shell git status -s || echo unversioned),'modified/untracked','clean')
 export BUILD_DATE:=$(shell date -u +"%Y-%m-%dT%H:%M:%SZ")
 
 export DOCKER_REGISTRY ?= anderegg
@@ -28,7 +23,9 @@ export DOCKER_IMAGE_TAG ?= $(shell cat VERSION)
 export COMPOSE_INPUT_DIR := ./validation/input
 export COMPOSE_OUTPUT_DIR := .tmp/output
 
-#----------------------------------- python dev
+APP_NAME := osparc-python
+
+# ENVIRON ----------------------------------
 .PHONY: devenv
 .venv:
 	python3 -m venv $@
@@ -52,7 +49,8 @@ devenv: .venv requirements.txt ## create a python virtual environment with tools
 	@echo "To activate the virtual environment, run 'source $</bin/activate'"
 
 
-#----------------------------------- oSparc integration
+
+# INTEGRATION -----------------------------------
 metatada = metadata/metadata.yml
 service.cli/run: $(metatada)
 	# Updates adapter script from metadata in $<
@@ -71,26 +69,30 @@ $(if $(findstring -x,$@),\
 )
 endef
 
-#----------------------------------- oSparc docker images
+
+
+# DOCKER ----------------------------------- 
 .PHONY: build build-devel build-kit-devel build-x build-devel-x
 build build-devel build-kit build-kit-devel build-x build-devel-x: docker-compose-build.yml docker-compose-meta.yml service.cli/run ## builds images, -devel in development mode, -kit using docker buildkit, -x using docker buildX (if installed)
 	# building image local/${DOCKER_IMAGE_NAME}...
 	@$(call _docker_compose_build)
-	# built local/${DOCKER_IMAGE_NAME}
 
 define show-meta
 	$(foreach iid,$(shell docker images */$(1):* -q | sort | uniq),\
 		docker image inspect $(iid) | jq '.[0] | .RepoTags, .ContainerConfig.Labels, .Config.Labels';)
 endef
+
 info-build: ## displays info on the built image
 	# Built images
 	@docker images */$(DOCKER_IMAGE_NAME):*
 	# Tags and labels
 	@$(call show-meta,$(DOCKER_IMAGE_NAME))
 
-#----------------------------------- oSparc integration testing
+
+
+# TESTS----------------------------------- 
 .PHONY: tests tests-unit tests-integration
-tests-unit tests-integration:
+tests-unit tests-integration: ## runs integration and unit tests
 	@.venv/bin/pytest -vv \
 		--basetemp=$(CURDIR)/tmp \
 		--exitfirst \
@@ -101,25 +103,32 @@ tests-unit tests-integration:
 
 tests: tests-unit tests-integration ## runs unit and integration tests
 
-#----------------------------------- oSparc service versioning
+
+# PUBLISHING ----------------------------------- 
+define _bumpversion
+	# upgrades as $(subst $(1),,$@) version, commits and tags
+	@bump2version --verbose --list $(subst $(1),,$@)
+endef
+
 .PHONY: version-service-patch version-service-minor version-service-major
 version-service-patch version-service-minor version-service-major: versioning/service.cfg ## kernel/service versioning as patch
-	@bump2version --verbose  --list --config-file $< $(subst version-service-,,$@)
-#---------------------------------------- oSparc service publishing
+	@$(call _bumpversion,version-service-)
+
 .PHONY: push push-force push-version push-latest pull-latest pull-version tag-latest tag-version
 define _check-version-exists
 	# checking version '$(DOCKER_REGISTRY)/$(DOCKER_IMAGE_NAME):$(DOCKER_IMAGE_TAG)' is not already pushed
 	$(if $(shell docker pull "$(DOCKER_REGISTRY)"/"$(DOCKER_IMAGE_NAME)":"$(1)"),false,true)
 endef
+
 define _check-version-valid
 	# checking version $(DOCKER_IMAGE_TAG) major is not 0
-	$(if $(shell  $$(echo $(1) | cut --fields=1 --delimiter=.) = 0),false,true)
+	$(if $(shell $$(echo $(1) | cut --fields=1 --delimiter=.) = 0),false,true)
 endef
 
 tag-latest tag-version:
 	docker tag local/$(DOCKER_IMAGE_NAME):production $(DOCKER_REGISTRY)/$(DOCKER_IMAGE_NAME):$(if $(findstring production,$@),$(DOCKER_IMAGE_TAG),latest)
 
-push push-force: ## push: – Pushes (resp. force) services to the registry if service not available in registry.
+push push-force: ## pushes (resp. force) services to the registry if service not available in registry.
 	@$(if $(findstring force,$@),,\
 	$(if $(call _check-version-valid,$(DOCKER_IMAGE_TAG)),,$(error service version shall be at least 1.0.0 (current $(DOCKER_IMAGE_TAG)))) \
 	$(if $(call _check-version-exists,$(DOCKER_IMAGE_TAG)),,$(error version already exists on $(DOCKER_REGISTRY))))
@@ -136,7 +145,12 @@ pull-latest pull-version: ## pull service from registry
 	@docker pull $(DOCKER_REGISTRY)/$(DOCKER_IMAGE_NAME):$(if $(findstring production,$@),$(DOCKER_IMAGE_TAG),latest)
 
 
-#---------------------------------------- service development/debugging
+.PHONY: version-integration-patch version-integration-minor version-integration-major
+version-integration-patch version-integration-minor version-integration-major: versioning/integration.cfg ## integration versioning as patch (bug fixes not affecting API/handling), minor/major (backwards-compatible/INcompatible API changes)
+	@$(call _bumpversion,version-integration-)
+
+
+# DEVELOPMENT ---------------------------------------- 
 # NOTE: since using docker-compose would create the folders automatically but as root user, which is inconvenient
 define _clean_output_dirs
 	# cleaning output directory
@@ -155,38 +169,47 @@ docker-compose-configs = $(wildcard docker-compose.*yml)
 	export DOCKER_IMAGE_TAG=$(patsubst .compose-%.yml,%,$@); \
 	docker-compose -f docker-compose.yml $(if $(findstring -development,$@), -f docker-compose.devel.yml,) --log-level=ERROR config > $@
 
+define _docker_compose_cli
+	$(eval docker_compose_path=.compose-$(if $(findstring devel,$@),development,production).yml)
+	$(MAKE) $(docker_compose_path)
+	@docker-compose -f $(docker_compose_path) $(1)
+endef
+
+
 .PHONY: down up up-devel shell shell-devel
 up up-devel: $(COMPOSE_INPUT_DIR) $(COMPOSE_OUTPUT_DIR) down ## Starts the service for testing. Devel mode mounts the folders for direct development.
-	$(MAKE) $(if $(findstring devel,$@),.compose-development.yml,.compose-production.yml)
-	# starting service...
-	@docker-compose -f $(if $(findstring devel,$@),.compose-development.yml,.compose-production.yml) up
+	# starting a service
+	$(call _docker_compose_cli,up)
 
 shell shell-devel: $(COMPOSE_INPUT_DIR) $(COMPOSE_OUTPUT_DIR) down ## Starts a shell instead of running the container. Useful for development.
-	$(MAKE) $(if $(findstring devel,$@),.compose-development.yml,.compose-production.yml)
 	# starting service and go in...
-	@docker-compose -f $(if $(findstring devel,$@),.compose-development.yml,.compose-production.yml) run --service-ports osparc-python /bin/sh
+	$(call _docker_compose_cli,--service-ports $(APP_NAME) /bin/sh)
 
 down: .compose-development.yml ## stops the service
 	@docker-compose -f $< down
 
-#----------------------------------- oSparc integration versioning
-.PHONY: version-integration-patch version-integration-minor version-integration-major
-version-integration-patch version-integration-minor version-integration-major: versioning/integration.cfg ## integration versioning as patch (bug fixes not affecting API/handling), minor/major (backwards-compatible/INcompatible API changes)
-	@bump2version --verbose  --list --config-file $< $(subst version-integration-,,$@)
 
 
-#-----------------------------------
+# MISCELANEOUS -----------------------------------
+.PHONY: replay
+replay: .cookiecutterrc ## re-applies cookiecutter
+	# Replaying . ...
+	@cookiecutter --no-input --overwrite-if-exists \
+		--config-file=$< \
+		--output-dir="$(abspath $(CURDIR)/..)" \
+		"."
+
+
 .PHONY: help
-# thanks to https://marmelab.com/blog/2016/02/29/auto-documented-makefile.html
 help: ## this colorful help
 	@echo "Recipes for '$(notdir $(CURDIR))':"
 	@echo ""
 	@awk --posix 'BEGIN {FS = ":.*?## "} /^[[:alpha:][:space:]_-]+:.*?## / {printf "\033[36m%-20s\033[0m %s\n", $$1, $$2}' $(MAKEFILE_LIST)
 	@echo ""
 
-git_clean_args = -dxf -e .vscode/ -e TODO.md -e .venv
 
 .PHONY: clean clean-force
+git_clean_args = -dxf -e .vscode/ -e .venv
 clean: ## cleans all unversioned files in project and temp files create by this makefile
 	# Cleaning unversioned
 	@$(git) clean -n $(git_clean_args)

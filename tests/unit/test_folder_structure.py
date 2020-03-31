@@ -3,6 +3,7 @@
 # pylint:disable=redefined-outer-name
 
 from pathlib import Path
+
 import pytest
 
 expected_files = (

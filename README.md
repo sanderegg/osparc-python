@@ -28,8 +28,8 @@ $ source .venv/bin/activate
 
 Two versions:
 
-- integration version (file VERSION) is updated with ``make version-integration-*``
-- service version (file src/osparc_python/VERSION) is updated with ``make version-service-*``
+- integration version (e.g. [src/osparc_python/VERSION_INTEGRATION]) is updated with ``make version-integration-*``
+- service version (e.g. [src/osparc_python/VERSION]) is updated with ``make version-service-*``
 
 ## CI/CD Integration
 
@@ -39,5 +39,5 @@ add the following in your __gitlab-ci.yml__ file:
 
 ```yaml
 include:
-  - local: '/services/osparc-python/CI/gitlab-ci.yml'
+  - local: '/services/osparc-python/ci/gitlab-ci.yml'
 ```
