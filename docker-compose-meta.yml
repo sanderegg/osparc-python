@@ -9,14 +9,14 @@ services:
         io.simcore.inputs: '{"inputs": {"input_1": {"displayOrder": 1, "label": "Input
           data", "description": "Data accessible to the node. Can contain code, requirements
           or data", "type": "data:*/*", "fileToKeyMap": {"example_script.py": "input_1"}}}}'
-        io.simcore.integration-version: '{"integration-version": "1.0.0"}'
+        io.simcore.integration-version: '{"integration-version": "1.0.1"}'
         io.simcore.key: '{"key": "simcore/services/comp/osparc-python"}'
         io.simcore.name: '{"name": "Osparc Python"}'
         io.simcore.outputs: '{"outputs": {"output_1": {"displayOrder": 1, "label":
           "Output data", "description": "Data produced by the script", "type": "data:*/*",
           "fileToKeyMap": {"output_data.zip": "output_1"}}}}'
         io.simcore.type: '{"type": "computational"}'
-        io.simcore.version: '{"version": "1.0.0"}'
+        io.simcore.version: '{"version": "1.0.1"}'
         org.label-schema.build-date: ${BUILD_DATE}
         org.label-schema.schema-version: '1.0'
         org.label-schema.vcs-ref: ${VCS_REF}
