@@ -120,7 +120,7 @@ def setup():
         "#!/bin/sh",
         "set -o errexit",
         "set -o nounset",
-        "IFS=$(printf '\n\t')'",
+        "IFS=$(printf '\\n\\t')",
         'echo "Creating virtual environment ..."',
         f"python3 -m venv --system-site-packages --symlinks --upgrade {venv_dir}",
         f"{venv_dir}/bin/pip install -U pip wheel setuptools",
@@ -132,7 +132,7 @@ def setup():
     main_script_path = Path("main.sh")
     with main_script_path.open("w") as fp:
         for line in script:
-            print("%s\n", line, file=fp)
+            print(f"{line}\n", file=fp)
 
     # # TODO: take snapshot
     # logger.info("Creating virtual environment ...")
