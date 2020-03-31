@@ -10,7 +10,6 @@ env:
   DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
   DOCKER_PASSWORD: ${{ secrets.DOCKER_PASSWORD }}
 
-
 jobs:
   build:
     name: building osparc-python
@@ -43,7 +42,7 @@ jobs:
       - name: build
         run: |
           make build
-          make info build
+          make info-build
       - name: test
         run: make tests
       - if: github.event_name == 'push'
