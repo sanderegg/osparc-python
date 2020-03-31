@@ -37,9 +37,9 @@ APP_NAME := osparc-python
 	# tooling
 	$@/bin/pip3 install pip-tools
 
-requirements.txt: requirements.in
+requirements.txt: .venv requirements.in
 	# freezes requirements
-	.venv/bin/pip-compile -v --output-file $@ $<
+	$</bin/pip-compile --upgrade --build-isolation --output-file $@ $(word2, $^)
 
 devenv: .venv requirements.txt ## create a python virtual environment with tools to dev, run and tests cookie-cutter
 	# installing extra tools
