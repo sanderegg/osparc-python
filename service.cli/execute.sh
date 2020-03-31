@@ -16,6 +16,6 @@ echo
 # The inputs defined in ${INPUT_FOLDER}/inputs.json are available as env variables by their key in capital letters
 # For example: input_1 -> $INPUT_1
 
-python3 ${HOME}/osparc_python/main.py setup
-/bin/bash ${HOME}/osparc_python/main.sh
-python3 ${HOME}/osparc_python/main.py teardown
+python3 "${HOME}"/osparc_python/main.py setup
+/bin/bash "${HOME}"/osparc_python/main.sh
+python3 "${HOME}"/osparc_python/main.py teardown
