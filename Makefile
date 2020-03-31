@@ -107,47 +107,47 @@ tests: tests-unit tests-integration ## runs unit and integration tests
 # PUBLISHING ----------------------------------- 
 define _bumpversion
 	# upgrades as $(subst $(1),,$@) version, commits and tags
-	@bump2version --verbose --list $(subst $(1),,$@)
+	@bump2version --verbose --list --config-file $(1) $(subst $(2),,$@)
 endef
 
 .PHONY: version-service-patch version-service-minor version-service-major
 version-service-patch version-service-minor version-service-major: versioning/service.cfg ## kernel/service versioning as patch
-	@$(call _bumpversion,version-service-)
+	@$(call _bumpversion,$<,version-service-)
 
 .PHONY: push push-force push-version push-latest pull-latest pull-version tag-latest tag-version
 define _check-version-exists
 	# checking version '$(DOCKER_REGISTRY)/$(DOCKER_IMAGE_NAME):$(DOCKER_IMAGE_TAG)' is not already pushed
-	$(if $(shell docker pull "$(DOCKER_REGISTRY)"/"$(DOCKER_IMAGE_NAME)":"$(1)"),false,true)
+	$(if $(shell docker pull "$(DOCKER_REGISTRY)"/"$(DOCKER_IMAGE_NAME)":"$(1)"),exit 1,exit 0)
 endef
 
 define _check-version-valid
 	# checking version $(DOCKER_IMAGE_TAG) major is not 0
-	$(if $(shell $$(echo $(1) | cut --fields=1 --delimiter=.) = 0),false,true)
+	$(if $(shell test $$(echo $(1) | cut --fields=1 --delimiter=.) = 0),exit 1,exit 0)
 endef
 
 tag-latest tag-version:
-	docker tag local/$(DOCKER_IMAGE_NAME):production $(DOCKER_REGISTRY)/$(DOCKER_IMAGE_NAME):$(if $(findstring production,$@),$(DOCKER_IMAGE_TAG),latest)
+	docker tag local/$(DOCKER_IMAGE_NAME):production $(DOCKER_REGISTRY)/$(DOCKER_IMAGE_NAME):$(if $(findstring version,$@),$(DOCKER_IMAGE_TAG),latest)
 
 push push-force: ## pushes (resp. force) services to the registry if service not available in registry.
 	@$(if $(findstring force,$@),,\
-	$(if $(call _check-version-valid,$(DOCKER_IMAGE_TAG)),,$(error service version shall be at least 1.0.0 (current $(DOCKER_IMAGE_TAG)))) \
-	$(if $(call _check-version-exists,$(DOCKER_IMAGE_TAG)),,$(error version already exists on $(DOCKER_REGISTRY))))
+		$(call _check-version-valid,$(DOCKER_IMAGE_TAG)),,$(error service version shall be at least 1.0.0 (current $(DOCKER_IMAGE_TAG))) \
+		$(call _check-version-exists,$(DOCKER_IMAGE_TAG)),,$(error version already exists on $(DOCKER_REGISTRY)))
 	@$(MAKE) push-version;
 	@$(MAKE) push-latest;
 
 push-latest push-version: ## publish service to registry with latest/version tag
-	# pushing '$(DOCKER_REGISTRY)/$(DOCKER_IMAGE_NAME):$(if $(findstring production,$@),$(DOCKER_IMAGE_TAG),latest)'...
+	# pushing '$(DOCKER_REGISTRY)/$(DOCKER_IMAGE_NAME):$(if $(findstring version,$@),$(DOCKER_IMAGE_TAG),latest)'...
 	@$(MAKE) tag-$(subst push-,,$@)
-	@docker push $(DOCKER_REGISTRY)/$(DOCKER_IMAGE_NAME):$(if $(findstring production,$@),$(DOCKER_IMAGE_TAG),latest)
-	# pushed '$(DOCKER_REGISTRY)/$(DOCKER_IMAGE_NAME):$(if $(findstring production,$@),$(DOCKER_IMAGE_TAG),latest)'
+	@docker push $(DOCKER_REGISTRY)/$(DOCKER_IMAGE_NAME):$(if $(findstring version,$@),$(DOCKER_IMAGE_TAG),latest)
+	# pushed '$(DOCKER_REGISTRY)/$(DOCKER_IMAGE_NAME):$(if $(findstring version,$@),$(DOCKER_IMAGE_TAG),latest)'
 
 pull-latest pull-version: ## pull service from registry
-	@docker pull $(DOCKER_REGISTRY)/$(DOCKER_IMAGE_NAME):$(if $(findstring production,$@),$(DOCKER_IMAGE_TAG),latest)
+	@docker pull $(DOCKER_REGISTRY)/$(DOCKER_IMAGE_NAME):$(if $(findstring version,$@),$(DOCKER_IMAGE_TAG),latest)
 
 
 .PHONY: version-integration-patch version-integration-minor version-integration-major
 version-integration-patch version-integration-minor version-integration-major: versioning/integration.cfg ## integration versioning as patch (bug fixes not affecting API/handling), minor/major (backwards-compatible/INcompatible API changes)
-	@$(call _bumpversion,version-integration-)
+	@$(call _bumpversion,$<,version-integration-)
 
 
 # DEVELOPMENT ---------------------------------------- 
