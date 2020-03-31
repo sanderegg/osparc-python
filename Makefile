@@ -63,7 +63,7 @@ docker-compose-meta.yml: $(metatada)
 define _docker_compose_build
 export DOCKER_BUILD_TARGET=$(if $(findstring -devel,$@),development,$(if $(findstring -cache,$@),cache,production)); \
 $(if $(findstring -x,$@),\
-	docker buildx > /dev/null 2>1; export DOCKER_CLI_EXPERIMENTAL=enabled; docker buildx bake  --file docker-compose-build.yml --file docker-compose-meta.yml $(if $(findstring -nc,$@),--no-cache,);,\
+	docker buildx > /dev/null; export DOCKER_CLI_EXPERIMENTAL=enabled; docker buildx bake  --file docker-compose-build.yml --file docker-compose-meta.yml $(if $(findstring -nc,$@),--no-cache,);,\
 	$(if $(findstring -kit,$@),export DOCKER_BUILDKIT=1;export COMPOSE_DOCKER_CLI_BUILD=1;,) \
 	docker-compose --file docker-compose-build.yml --file docker-compose-meta.yml build $(if $(findstring -nc,$@),--no-cache,) --parallel;\
 )
@@ -115,23 +115,16 @@ version-service-patch version-service-minor version-service-major: versioning/se
 	@$(call _bumpversion,$<,version-service-)
 
 .PHONY: push push-force push-version push-latest pull-latest pull-version tag-latest tag-version
-define _check-version-exists
-	# checking version '$(DOCKER_REGISTRY)/$(DOCKER_IMAGE_NAME):$(DOCKER_IMAGE_TAG)' is not already pushed
-	$(if $(shell docker pull "$(DOCKER_REGISTRY)"/"$(DOCKER_IMAGE_NAME)":"$(1)"),exit 1,exit 0)
-endef
-
-define _check-version-valid
-	# checking version $(DOCKER_IMAGE_TAG) major is not 0
-	$(if $(shell test $$(echo $(1) | cut --fields=1 --delimiter=.) = 0),exit 1,exit 0)
-endef
-
 tag-latest tag-version:
 	docker tag local/$(DOCKER_IMAGE_NAME):production $(DOCKER_REGISTRY)/$(DOCKER_IMAGE_NAME):$(if $(findstring version,$@),$(DOCKER_IMAGE_TAG),latest)
 
+version_valid = $(shell test $$(echo $(DOCKER_IMAGE_TAG) | cut --fields=1 --delimiter=.) -gt 0 > /dev/null 2>1 && echo "image version is valid")
+version_exists = $(shell DOCKER_CLI_EXPERIMENTAL=enabled docker manifest inspect $(DOCKER_REGISTRY)/$(DOCKER_IMAGE_NAME):$(DOCKER_IMAGE_TAG) > /dev/null 2>1 && echo "image already exists on $(DOCKER_REGISTRY)")
 push push-force: ## pushes (resp. force) services to the registry if service not available in registry.
 	@$(if $(findstring force,$@),,\
-		$(call _check-version-valid,$(DOCKER_IMAGE_TAG)),,$(error service version shall be at least 1.0.0 (current $(DOCKER_IMAGE_TAG))) \
-		$(call _check-version-exists,$(DOCKER_IMAGE_TAG)),,$(error version already exists on $(DOCKER_REGISTRY)))
+		$(if $(call version_valid),$(info version is valid), $(error $(DOCKER_IMAGE_TAG) is not a valid version (major>=1)))\
+		$(if $(call version_exists),$(error $(DOCKER_REGISTRY)/$(DOCKER_IMAGE_NAME):$(DOCKER_IMAGE_TAG) already exists on $(DOCKER_REGISTRY)), $(info no version found on $(DOCKER_REGISTRY)))\
+	)
 	@$(MAKE) push-version;
 	@$(MAKE) push-latest;
 

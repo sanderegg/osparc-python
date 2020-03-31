@@ -48,7 +48,4 @@ jobs:
         run: make tests
       - if: github.event_name == 'push'
         name: deploy
-        run: |
-          make tag-version
-          make tag-latest
-          make push
+        run: make push
