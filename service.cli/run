@@ -10,7 +10,7 @@ IFS=$(printf '\n\t')
 cd "$(dirname "$0")"
 json_input=$INPUT_FOLDER/inputs.json
         
-INPUT_1=$INPUT_FOLDER/input_1
+INPUT_1=$INPUT_FOLDER/example_script.py
 export INPUT_1
 
 exec execute.sh
