@@ -18,8 +18,12 @@ echo
 
 # put the code to execute the service here
 # For example:
-env
-ls -al "${INPUT_FOLDER}"
+# env
+# ls -al "${INPUT_FOLDER}"
+
+python3 ${HOME}/osparc_python/main.py setup
+/bin/bash ${HOME}/osparc_python/main.sh
+python3 ${HOME}/osparc_python/main.py teardown
 
 # then retrieve the output and move it to the $OUTPUT_FOLDER
 # as defined in the output labels

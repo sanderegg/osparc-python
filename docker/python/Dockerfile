@@ -50,6 +50,7 @@ COPY --chown=${SC_USER_NAME}:${SC_USER_NAME} src/osparc_python src/osparc_python
 #TODO:
 # uncomment and adapt if build steps are necessary
 # RUN gcc ...
+RUN cp -R src/osparc_python/* /build/bin
 # ------------------------------------------------------------------------------------
 
 # --------------------------Production stage -------------------
@@ -89,8 +90,8 @@ COPY --chown=${SC_USER_NAME}:${SC_USER_NAME} service.cli/ service.cli/
 ENV PATH="/home/${SC_USER_NAME}/service.cli:${PATH}"
 
 # copy binaries from build
-COPY --from=build /build/bin osparc_python
-
+COPY --from=build --chown=${SC_USER_NAME}:${SC_USER_NAME} /build/bin osparc_python
+RUN pip install -r osparc_python/requirements.txt
 # ------------------------------------------------------------------------------------
 #TODO:
 # uncomment and provide a healtchecker if possible
@@ -101,5 +102,5 @@ COPY --from=build /build/bin osparc_python
 #             CMD ["healthchecker app"]
 # ------------------------------------------------------------------------------------
 
-ENTRYPOINT [ "/bin/sh", "docker/entrypoint.sh", "/bin/sh", "-c" ]
+ENTRYPOINT [ "/bin/sh", "docker/entrypoint.sh" ]
 CMD ["run"]
