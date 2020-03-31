@@ -16,6 +16,8 @@ inputs:
     description: Data accessible to the node. Can contain code,
       requirements or data
     type: data:*/*
+    fileToKeyMap:
+      example_script.py: input_1
 
 outputs:
   output_1:
