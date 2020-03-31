@@ -1,8 +1,8 @@
 name: Osparc Python
 key: simcore/services/comp/osparc-python
 type: computational
-integration-version: 1.0.0
-version: 1.0.0
+integration-version: 1.0.1
+version: 1.0.1
 description: Python script runner
 contact: anderegg@itis.swiss
 authors:
