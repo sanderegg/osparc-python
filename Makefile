@@ -183,7 +183,7 @@ up up-devel: $(COMPOSE_INPUT_DIR) $(COMPOSE_OUTPUT_DIR) down ## Starts the servi
 
 shell shell-devel: $(COMPOSE_INPUT_DIR) $(COMPOSE_OUTPUT_DIR) down ## Starts a shell instead of running the container. Useful for development.
 	# starting service and go in...
-	$(call _docker_compose_cli,--service-ports $(APP_NAME) /bin/sh)
+	$(call _docker_compose_cli,run --service-ports $(APP_NAME) /bin/sh)
 
 down: .compose-development.yml ## stops the service
 	@docker-compose -f $< down
